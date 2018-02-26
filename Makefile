@@ -1,26 +1,15 @@
 appname := myshell
 
 CXX := g++
-CXXFLAGS := -std=c++11
+CXXFLAGS := -x c++ -std=c++11
 
-srcfiles := $(shell find . -name "*.cpp")
-objects  := $(patsubst %.cpp, %.o, $(srcfiles))
+srcfiles := $(shell find . -maxdepth 1 -name "*.cpp" -o -name "*.c")
 
 all: $(appname)
 
 $(appname): $(objects)
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $(appname) $(objects) $(LDLIBS)
-
-#depend: .depend
-
-#.depend: $(srcfiles)
-#	rm -f ./.depend
-#	$(CXX) $(CXXFLAGS) -MM $^>>./.depend;
+	$(CXX) $(CXXFLAGS) $(srcfiles) -o $(appname)
 
 clean:
 	rm -f $(objects)
 
-#dist-clean: clean
-#	rm -f *~ .depend
-
-#include .depend
