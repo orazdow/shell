@@ -9,9 +9,7 @@
 #define HIST_LEN 100
 
 char* args[ARG_LEN];
-// char* args2[ARG_LEN];
 char line[LINE_LEN];
-// char line2[LINE_LEN];
 int forkstatus = 0;
 
 struct History{
@@ -56,13 +54,13 @@ int execCmd(char** args, int bkgd){
 	if(forkstatus < 0){ printf("forkError\n");
 		return -1;
 	}else if(forkstatus == 0){ 
-		//child context
+		// child context
 		execvp(args[0], args);
-		printf("Execution Error");
 		//if control returned, return error:
+		fprintf(stderr, "execution error\n");
 		return -1;
 	}else{
-		//parent context
+		// parent context
 		// wait until child process is finished
 		int status = 0;
 		if(bkgd){
@@ -81,16 +79,34 @@ int execCmd(char** args, int bkgd){
 }
 
 void execPipe(char** childargs, char** parentargs){
-	printf("args:\n");
-	for(int i = 0; i < sizeof(childargs); i++){
-		if(childargs[i])
-			printf("%s\n", childargs[i]);
+	
+	int fd[2]; // 0: stdin 1: stdout
+	pipe(fd);
+
+	int freturn = fork();
+
+	if(freturn < 0){
+		fprintf(stderr, "fork error\n");
+	}else if(freturn == 0){
+		// child context
+
+		// dup stdout
+		dup2(fd[1], STDOUT_FILENO);
+		close(fd[0]);
+		// exec process
+		execvp(childargs[0], childargs);
+
+	}else{
+		// parent context
+		wait(NULL);
+		// dup stdin
+		dup2(fd[0], STDIN_FILENO);
+		close(fd[1]);
+		// exec process
+		execvp(parentargs[0], parentargs);
+
 	}
-	printf("args2:\n");
-	for(int i = 0; i < sizeof(parentargs); i++){
-		if(parentargs[i])
-			printf("%s\n", parentargs[i]);
-	}
+
 }
 
 char memline[LINE_LEN];
@@ -119,43 +135,54 @@ int main(int argc, char** argv) {
 		char* nl = strchr(line,'\n');
 		*nl = '\0';
 
+		// detect bkgd
 		char* ampsnd = strchr(line, '&');
 		if(ampsnd != NULL){
 			*ampsnd = ' ';
 			bkgd = 1;
 		}
 
+		// detect pipe
 		char* vbar = strchr(line, '|');
 		if(vbar != NULL){
 			*vbar = ' ';
 			pipeactive = 1;
 		}
 
+		// get line from history
 		char* up = strchr(line,(char)65);
 		if(up != NULL){
-			//get line from history
 			memcpy(memline, read_hist(&history), LINE_LEN);
 			memactive = 1;
 			continue;
 		}
 
+		// add line to history
 		if(strlen(line) > 0)
 			add_hist(line, &history);
 
-
-
-		if(pipeactive){
+		// execute pipe
+		if(pipeactive){ 
 
 			*vbar = '\0';
-			vbar += sizeof(char);
+			vbar++;
 
+			// malloc b/c of pointer problems..
 			char** args1 = (char**)malloc(LINE_LEN*ARG_LEN);
 			char** args2 = (char**)malloc(LINE_LEN*ARG_LEN);
 
 			getCmd(line, args1);
 			getCmd(vbar, args2);
 
-			execPipe(args1, args2);
+			int f = fork();
+
+			if(f < 0){
+				fprintf(stderr, "fork error");
+			}else if(f == 0){
+				execPipe(args1, args2);
+			}else{
+				wait(NULL);
+			}
 
 			free(args2); 
 			free(args1);
@@ -163,31 +190,24 @@ int main(int argc, char** argv) {
 			continue;
 		}
 
-
-		// enter pressed w/o input:
-		if(getCmd(line,args) == 0){ 
-			// try history if currently active:
-			if(memactive){
-				memactive = 0;
-				if(getCmd(memline,args) == 0)
-					continue;
+			// enter pressed w/o input:
+			if(getCmd(line,args) == 0){ 
+				// try history if currently active:
+				if(memactive){
+					memactive = 0;
+					if(getCmd(memline,args) == 0)
+						continue;
+				}
+				else{
+					continue; 
+				}
 			}
-			else{
-				continue; 
-			}
-		}
 
-		execCmd(args, bkgd);
-
-		// memset(&line, 0, LINE_LEN);
-		// memset(&args, 0, ARG_LEN);
+			// execute command
+			execCmd(args, bkgd);
 
 	}
 
     return 0;
 }
 
-/*
-wget http://www.orazdow.com/stuff/otter.jpg
-wget http://www.orazdow.com/stuff/ha.mp3
-*/
