@@ -1,6 +1,7 @@
 /build
 /dist
 /nbproject
+/keyb
 .dep.inc
 myshell
 *.o
