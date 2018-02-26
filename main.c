@@ -5,11 +5,18 @@
 
 #define LINE_LEN 1024
 #define ARG_LEN 50
-
+#define HIST_LEN 100
 
 char* args[ARG_LEN];
 char line[LINE_LEN];
 int forkstatus = 0;
+
+struct History{
+	char lines[HIST_LEN][LINE_LEN];
+	int max_idx;
+	int write_idx;
+	int read_idx;
+};
 
 int getCmd(char* line, char** args){
   char* p;
@@ -23,6 +30,20 @@ int getCmd(char* line, char** args){
   }
   args[aidx] = NULL;
   return 1;
+}
+
+void add_hist(char* line, struct History *history){	
+	memcpy(history->lines[history->write_idx], line, strlen(line));
+	history->read_idx = history->write_idx;
+	history->write_idx = ++history->write_idx % history->max_idx;
+}
+
+char* read_hist(struct  History *history){
+	char* rtn = history->lines[history->read_idx];
+	history->read_idx--;
+	if(history->read_idx < 0)
+		history->read_idx = history->write_idx-1;
+	return rtn;
 }
 
 int execCmd(char** args, int bkgd){
@@ -60,6 +81,11 @@ int execCmd(char** args, int bkgd){
 
 int main(int argc, char** argv) {
 
+	struct History history;
+	history.max_idx = HIST_LEN;
+	history.write_idx = 0;
+	history.read_idx = 0;
+
 
 	while(1){
 
@@ -77,25 +103,24 @@ int main(int argc, char** argv) {
 			bkgd = 1;
 		}
 
-		char* up = strchr(line,(char)27);
+		char* up = strchr(line,(char)65);
 		if(up != NULL){
-			printf("UP!\n");
+			printf("%s\n", read_hist(&history));
 			continue;
 		}
+
+		if(strlen(line) > 0)
+			add_hist(line, &history);
+
 
 		if(getCmd(line,args) == 0){ 
 			continue; 
 		}
 
-		// for(int i = 0; i < ARG_LEN; i++){
-		// 	if(args[i])
-		// 	printf("%s\n", args[i]);
-		// }
-
 		execCmd(args, bkgd);
 
-		memset(&line, 0, LINE_LEN);
-		memset(&args, 0, ARG_LEN);
+		// memset(&line, 0, LINE_LEN);
+		// memset(&args, 0, ARG_LEN);
 
 	}
 
