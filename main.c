@@ -24,6 +24,7 @@ struct History{
 
 int getCmd(char* line, char** args);
 void startPipe(char* line, char* vbar);
+int cd(char** args);
 void add_hist(char* line, struct History *history);
 char* read_hist(struct  History *history);
 void execCmd(char** args, int bkgd);
@@ -82,29 +83,36 @@ int main(int argc, char** argv) {
 			continue;
 		}
 
-			// if enter pressed w/o input:
-			if(getCmd(line,args) == 0){ 
-				// if history active:
-				if(memactive){
-					memactive = 0;
-					 vbar = NULL;
-					 vbar = strchr(memline, '|');
-					 // if pipe command:
-					 if(vbar != NULL){
-					 	// exec from history
-					 	startPipe(memline, vbar);
-					 	continue;
-					 }else{
-					 	// get args from historty if not empty
-						if(getCmd(memline,args) == 0)
-							continue;					 	
-					}
-				}			
-				continue; 			
-			}
+		// if enter pressed w/o input:
+		if(getCmd(line,args) == 0){ 
+			// if history active:
+			if(memactive){
+				memactive = 0;
+				add_hist(memline, &history);
+				 vbar = NULL;
+				 vbar = strchr(memline, '|');
+				 // if pipe command:
+				 if(vbar != NULL){
+				 	// exec from history
+				 	startPipe(memline, vbar);
+				 	continue;
+				 }else{
+				 	// get args from historty if not empty
+					if(getCmd(memline,args) == 0)
+						continue;	
 
-			// execute command
-			execCmd(args, bkgd);
+					cd(args);				 	
+				}
+			}			
+			continue; 			
+		}
+
+		// change directory
+		if(cd(args))
+			continue;
+
+		// execute command
+		execCmd(args, bkgd);
 
 	}
 
@@ -124,6 +132,17 @@ int getCmd(char* line, char** args){
   }
   args[aidx] = NULL;
   return 1;
+}
+
+// change directory
+int cd(char** args){
+	if(strcmp(args[0], "cd") == 0){
+		int cdrtn = chdir(args[1]);
+		if(cdrtn != 0)
+			printf("cd error: %d\n", cdrtn);
+		return 1;
+	}	
+	return 0;
 }
 
 // parse args for pipe
@@ -189,6 +208,7 @@ void execCmd(char** args, int bkgd){
 		// wait until child process is finished
 		int status = 0;
 		if(bkgd){
+			// run in background
 			while(waitpid(-1, 0, WNOHANG) > 0){}
 			return;
 		}else{
