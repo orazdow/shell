@@ -78,6 +78,8 @@ int execCmd(char** args, int bkgd){
 
 }
 
+char memline[LINE_LEN];
+int memactive = 0;
 
 int main(int argc, char** argv) {
 
@@ -90,7 +92,10 @@ int main(int argc, char** argv) {
 	while(1){
 
 		int bkgd = 0;
-		printf("myshell>");
+		printf("myshell> ");
+
+		if(memactive)
+			printf("%s", memline);
 
 		// get line, remove newline char
 		fgets(line, LINE_LEN-1,stdin);
@@ -105,7 +110,9 @@ int main(int argc, char** argv) {
 
 		char* up = strchr(line,(char)65);
 		if(up != NULL){
-			printf("%s\n", read_hist(&history));
+			//get line from history
+			memcpy(memline, read_hist(&history), LINE_LEN);
+			memactive = 1;
 			continue;
 		}
 
@@ -114,7 +121,15 @@ int main(int argc, char** argv) {
 
 
 		if(getCmd(line,args) == 0){ 
-			continue; 
+			
+			if(memactive){
+				memactive = 0;
+				if(getCmd(memline,args) == 0)
+					continue;
+			}
+			else{
+				continue; 
+			}
 		}
 
 		execCmd(args, bkgd);
