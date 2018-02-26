@@ -2,6 +2,7 @@
 /dist
 /nbproject
 /keyb
+/pipe
 .dep.inc
 myshell
 *.o

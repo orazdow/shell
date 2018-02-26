@@ -2,13 +2,16 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <stdlib.h>
 
 #define LINE_LEN 1024
 #define ARG_LEN 50
 #define HIST_LEN 100
 
 char* args[ARG_LEN];
+// char* args2[ARG_LEN];
 char line[LINE_LEN];
+// char line2[LINE_LEN];
 int forkstatus = 0;
 
 struct History{
@@ -25,7 +28,7 @@ int getCmd(char* line, char** args){
   p = strtok(line," ");
   while(p != NULL){
     args[aidx] = p;
-    aidx = ++aidx%ARG_LEN;
+    aidx = ++aidx%ARG_LEN; 
     p = strtok(NULL, " ");
   }
   args[aidx] = NULL;
@@ -75,7 +78,19 @@ int execCmd(char** args, int bkgd){
 		}
 	}
 
+}
 
+void execPipe(char** childargs, char** parentargs){
+	printf("args:\n");
+	for(int i = 0; i < sizeof(childargs); i++){
+		if(childargs[i])
+			printf("%s\n", childargs[i]);
+	}
+	printf("args2:\n");
+	for(int i = 0; i < sizeof(parentargs); i++){
+		if(parentargs[i])
+			printf("%s\n", parentargs[i]);
+	}
 }
 
 char memline[LINE_LEN];
@@ -92,6 +107,8 @@ int main(int argc, char** argv) {
 	while(1){
 
 		int bkgd = 0;
+		int pipeactive = 0;
+
 		printf("myshell> ");
 
 		if(memactive)
@@ -108,6 +125,12 @@ int main(int argc, char** argv) {
 			bkgd = 1;
 		}
 
+		char* vbar = strchr(line, '|');
+		if(vbar != NULL){
+			*vbar = ' ';
+			pipeactive = 1;
+		}
+
 		char* up = strchr(line,(char)65);
 		if(up != NULL){
 			//get line from history
@@ -120,8 +143,30 @@ int main(int argc, char** argv) {
 			add_hist(line, &history);
 
 
+
+		if(pipeactive){
+
+			*vbar = '\0';
+			vbar += sizeof(char);
+
+			char** args1 = (char**)malloc(LINE_LEN*ARG_LEN);
+			char** args2 = (char**)malloc(LINE_LEN*ARG_LEN);
+
+			getCmd(line, args1);
+			getCmd(vbar, args2);
+
+			execPipe(args1, args2);
+
+			free(args2); 
+			free(args1);
+
+			continue;
+		}
+
+
+		// enter pressed w/o input:
 		if(getCmd(line,args) == 0){ 
-			
+			// try history if currently active:
 			if(memactive){
 				memactive = 0;
 				if(getCmd(memline,args) == 0)
