@@ -1,3 +1,5 @@
+/* Ollie Razdow CS575 Project 1 Shell */
+
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -101,7 +103,8 @@ int main(int argc, char** argv) {
 					if(getCmd(memline,args) == 0)
 						continue;	
 
-					cd(args);				 	
+					cd(args);	
+					execCmd(args, bkgd);			 	
 				}
 			}			
 			continue; 			
