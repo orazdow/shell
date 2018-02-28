@@ -10,10 +10,8 @@
 #define ARG_LEN 50
 #define HIST_LEN 100
 
-
 char* args[ARG_LEN];
 char line[LINE_LEN];
-int forkstatus = 0;
 char memline[LINE_LEN];
 int memactive = 0;
 
@@ -27,6 +25,7 @@ struct History{
 int getCmd(char* line, char** args);
 void startPipe(char* line, char* vbar);
 int cd(char** args);
+void getCwd(char* *dir);
 void add_hist(char* line, struct History *history);
 char* read_hist(struct  History *history);
 void execCmd(char** args, int bkgd);
@@ -39,19 +38,24 @@ int main(int argc, char** argv) {
 	history.write_idx = 0;
 	history.read_idx = 0;
 
+	char* dir = NULL;
+	getCwd(&dir);
 
 	while(1){
 
 		int bkgd = 0;
 		int pipeactive = 0;
 
-		printf("myshell> ");
+		if(dir)
+			printf("myshell%s> ", dir);
+		else 
+			printf("myshell> ");
 
 		if(memactive)
 			printf("%s", memline);
 
 		// get line, remove newline char
-		fgets(line, LINE_LEN-1,stdin);
+		fgets(line, LINE_LEN, stdin);
 		char* nl = strchr(line,'\n');
 		*nl = '\0';
 
@@ -103,7 +107,10 @@ int main(int argc, char** argv) {
 					if(getCmd(memline,args) == 0)
 						continue;	
 
-					cd(args);	
+					if(cd(args)){
+						getCwd(&dir);
+						continue;
+					}
 					execCmd(args, bkgd);			 	
 				}
 			}			
@@ -111,8 +118,10 @@ int main(int argc, char** argv) {
 		}
 
 		// change directory
-		if(cd(args))
+		if(cd(args)){
+			getCwd(&dir);
 			continue;
+		}
 
 		// execute command
 		execCmd(args, bkgd);
@@ -146,6 +155,13 @@ int cd(char** args){
 		return 1;
 	}	
 	return 0;
+}
+
+// get current dir
+void getCwd(char* *dir){
+	static char cwd[LINE_LEN];
+	getcwd(cwd, LINE_LEN);
+	*dir = strrchr(cwd, '/');
 }
 
 // parse args for pipe
@@ -195,11 +211,11 @@ char* read_hist(struct  History *history){
 // execute command
 void execCmd(char** args, int bkgd){
 
-	forkstatus = fork();
+	int fstatus = fork();
 
-	if(forkstatus < 0){ 
+	if(fstatus < 0){ 
 		printf("fork error\n");
-	}else if(forkstatus == 0){ 
+	}else if(fstatus == 0){ 
 		// child context
 
 		execvp(args[0], args);
